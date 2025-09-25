@@ -3,6 +3,8 @@
 import json
 import os
 import logging
+import sys
+from dotenv import load_dotenv
 from helpers.utils import generate_secure_random_string
 from services.supabase_service import SupabaseClient
 
@@ -18,6 +20,9 @@ logging.basicConfig(
 )
 
 def main():
+    # Load environment variables from .env file
+    load_dotenv()
+
     # Load configurations from config.json
     try:
         with open('config.json', 'r') as config_file:
@@ -127,6 +132,10 @@ def main():
                 logging.info(f"  Delete Success: {status['success_delete']}")
             else:
                 logging.info("  Delete Success: N/A")
+
+    if not all_successful:
+        logging.error("There was an error in the process. Exiting.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,47 @@
+name: Supabase Inactive Fix
+
+on:
+  schedule:
+    - cron: '0 1,14 1-31/2 * *' # Runs at 08:00 and 21:00 UTC+7, every 2 days, between day 1 and 31
+  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+
+jobs:
+  work:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+        #with:
+        #  repository: travisvn/supabase-inactive-fix
+
+      # Set up Environment
+      - name: Create env-file
+        id: Create-env-file
+        env:
+          ENV: ${{ secrets.SUPABASE_ENV }}
+        if: ${{ env.ENV != '' }}
+        run: |
+          touch .env
+          echo "$ENV" >> .env
+
+      # Set up Config
+      - name: Create config-file
+        id: create-config-file
+        env:
+          CONFIG: ${{ secrets.SUPABASE_CONFIG }}
+        if: ${{ env.CONFIG != '' }}
+        run: |
+          touch config.json
+          echo "$CONFIG" >> config.json
+
+      # Update Supabase database
+      - name: Run
+        id: run
+        shell: bash
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          python main.py

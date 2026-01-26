@@ -1,0 +1,56 @@
+name: Update version
+
+on:
+  schedule:
+    - cron: '0 11 28 * *' # Runs at 18:00 (UTC+7) every 28th of the month
+  workflow_dispatch:
+
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Set up repo
+      - name: Prepare repo
+        id: prep-repo
+        env:
+          COMMIT_FHASH: ${{ github.workspace }}/../fullhash.txt
+          COMMIT_PHASH: ${{ github.workspace }}/../parenthash.txt
+        run: |
+          git log -1 --author="github-actions\[bot\]" --format="%H" > $COMMIT_FHASH
+          if ! git log -1 --format="%P" $(cat $COMMIT_FHASH) > $COMMIT_PHASH; then
+              echo "Error: commit hash not found"
+              exit 1
+          fi
+          echo "P_HASH=$(cat $COMMIT_PHASH)" >> "$GITHUB_OUTPUT"
+
+      # Push to GitHub
+      - name: Push changes
+        env:
+          TZ: Etc/UTC
+          P_HASH: ${{ steps.prep-repo.outputs.P_HASH }}
+        if: ${{ env.P_HASH != '' }}
+        run: |
+          git checkout $P_HASH
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          date -I > VERSION
+          git add .
+          git commit -m "Update VERSION"
+          git push -u origin HEAD:refs/heads/main -f
+
+      # Delete previous workflow
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 0
+          keep_minimum_runs: 2

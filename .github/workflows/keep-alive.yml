@@ -6,8 +6,8 @@ name: Supabase Keep-Alive
 
 on:
   schedule:
-    # Run at midnight UTC every Monday and Thursday
-    - cron: '0 0 * * 1,4'
+    # Runs at 08:00 and 21:00 UTC+7, every 2 days, between day 1 and 31
+    - cron: '0 1,14 1-31/2 * *'
 
   # Allow manual triggering from the Actions tab
   workflow_dispatch:
@@ -17,7 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     # Only run if the ENABLE_GITHUB_ACTIONS variable is set to 'true'
     # This prevents the workflow from running unintentionally
-    if: vars.ENABLE_GITHUB_ACTIONS == 'true'
+    #if: vars.ENABLE_GITHUB_ACTIONS == 'true'
+    permissions:
+      actions: write
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -29,18 +32,32 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Set up Environment
+        env:
+          ENV: ${{ secrets.SUPABASE_ENV }}
+        if: ${{ env.ENV != '' }}
+        run: echo "$ENV" > .env
+
+      - name: Set up Config
+        env:
+          CONFIG: ${{ secrets.SUPABASE_CONFIG }}
+        if: ${{ env.CONFIG != '' }}
+        run: echo "$CONFIG" > config.json
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          python3 -m pip install -U pip
+          python3 -m pip install -r requirements.txt
 
       - name: Run keep-alive script
-        run: python main.py
-        env:
-          # Add your Supabase keys as GitHub Secrets
-          # Go to: Settings > Secrets and variables > Actions > New repository secret
-          # Create secrets matching the env var names in your config.json
-          SUPABASE_KEY_1: ${{ secrets.SUPABASE_KEY_1 }}
-          SUPABASE_KEY_2: ${{ secrets.SUPABASE_KEY_2 }}
-          SUPABASE_KEY_3: ${{ secrets.SUPABASE_KEY_3 }}
-          SUPABASE_KEY_4: ${{ secrets.SUPABASE_KEY_4 }}
-          SUPABASE_KEY_5: ${{ secrets.SUPABASE_KEY_5 }}
-          # Add more as needed for your databases
+        run: |
+          source venv/bin/activate
+          python3 main.py
+
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 0
+          keep_minimum_runs: 3
